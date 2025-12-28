@@ -134,6 +134,7 @@ export default function Home() {
       ]);
       const output1 = await ffmpeg.readFile("output-1.mp4");
       const output2 = await ffmpeg.readFile("output-2.mp4");
+
       const output1Buffer = output1.buffer.slice(
         output1.byteOffset,
         output1.byteOffset + output1.byteLength,
@@ -148,13 +149,17 @@ export default function Home() {
           url: URL.createObjectURL(
             new Blob([output1Buffer], { type: "video/mp4" }),
           ),
+
           size: output1.length,
         },
         {
           name: "split-part-2.mp4",
+
+=======
           url: URL.createObjectURL(
             new Blob([output2Buffer], { type: "video/mp4" }),
           ),
+
           size: output2.length,
         },
       ];
@@ -200,6 +205,7 @@ export default function Home() {
         "merged.mp4",
       ]);
       const merged = await ffmpeg.readFile("merged.mp4");
+
       const mergedBuffer = merged.buffer.slice(
         merged.byteOffset,
         merged.byteOffset + merged.byteLength,
@@ -209,6 +215,7 @@ export default function Home() {
         url: URL.createObjectURL(
           new Blob([mergedBuffer], { type: "video/mp4" }),
         ),
+
         size: merged.length,
       });
       await ffmpeg.deleteFile("first.mp4");
