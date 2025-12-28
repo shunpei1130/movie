@@ -134,18 +134,32 @@ export default function Home() {
       ]);
       const output1 = await ffmpeg.readFile("output-1.mp4");
       const output2 = await ffmpeg.readFile("output-2.mp4");
-      if (typeof output1 === "string" || typeof output2 === "string") {
-        throw new Error("動画の出力形式が不正です。");
-      }
+
+      const output1Buffer = output1.buffer.slice(
+        output1.byteOffset,
+        output1.byteOffset + output1.byteLength,
+      );
+      const output2Buffer = output2.buffer.slice(
+        output2.byteOffset,
+        output2.byteOffset + output2.byteLength,
+      );
       const newOutputs = [
         {
           name: "split-part-1.mp4",
-          url: URL.createObjectURL(new Blob([output1], { type: "video/mp4" })),
+          url: URL.createObjectURL(
+            new Blob([output1Buffer], { type: "video/mp4" }),
+          ),
+
           size: output1.length,
         },
         {
           name: "split-part-2.mp4",
-          url: URL.createObjectURL(new Blob([output2], { type: "video/mp4" })),
+
+=======
+          url: URL.createObjectURL(
+            new Blob([output2Buffer], { type: "video/mp4" }),
+          ),
+
           size: output2.length,
         },
       ];
@@ -191,12 +205,17 @@ export default function Home() {
         "merged.mp4",
       ]);
       const merged = await ffmpeg.readFile("merged.mp4");
-      if (typeof merged === "string") {
-        throw new Error("動画の出力形式が不正です。");
-      }
+
+      const mergedBuffer = merged.buffer.slice(
+        merged.byteOffset,
+        merged.byteOffset + merged.byteLength,
+      );
       setMergeOutput({
         name: "merged.mp4",
-        url: URL.createObjectURL(new Blob([merged], { type: "video/mp4" })),
+        url: URL.createObjectURL(
+          new Blob([mergedBuffer], { type: "video/mp4" }),
+        ),
+
         size: merged.length,
       });
       await ffmpeg.deleteFile("first.mp4");
