@@ -135,32 +135,24 @@ export default function Home() {
       const output1 = await ffmpeg.readFile("output-1.mp4");
       const output2 = await ffmpeg.readFile("output-2.mp4");
 
-      const output1Buffer = output1.buffer.slice(
-        output1.byteOffset,
-        output1.byteOffset + output1.byteLength,
-      );
-      const output2Buffer = output2.buffer.slice(
-        output2.byteOffset,
-        output2.byteOffset + output2.byteLength,
-      );
+      const output1Array = output1 as Uint8Array;
+      const output2Array = output2 as Uint8Array;
+
       const newOutputs = [
         {
           name: "split-part-1.mp4",
           url: URL.createObjectURL(
-            new Blob([output1Buffer], { type: "video/mp4" }),
+            new Blob([output1Array as BlobPart], { type: "video/mp4" }),
           ),
 
-          size: output1.length,
+          size: output1Array.length,
         },
         {
           name: "split-part-2.mp4",
-
-=======
           url: URL.createObjectURL(
-            new Blob([output2Buffer], { type: "video/mp4" }),
+            new Blob([output2Array as BlobPart], { type: "video/mp4" }),
           ),
-
-          size: output2.length,
+          size: output2Array.length,
         },
       ];
       setSplitOutputs(newOutputs);
@@ -206,17 +198,14 @@ export default function Home() {
       ]);
       const merged = await ffmpeg.readFile("merged.mp4");
 
-      const mergedBuffer = merged.buffer.slice(
-        merged.byteOffset,
-        merged.byteOffset + merged.byteLength,
-      );
+      const mergedArray = merged as Uint8Array;
       setMergeOutput({
         name: "merged.mp4",
         url: URL.createObjectURL(
-          new Blob([mergedBuffer], { type: "video/mp4" }),
+          new Blob([mergedArray as BlobPart], { type: "video/mp4" }),
         ),
 
-        size: merged.length,
+        size: mergedArray.length,
       });
       await ffmpeg.deleteFile("first.mp4");
       await ffmpeg.deleteFile("second.mp4");
