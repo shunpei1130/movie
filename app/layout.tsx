@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "動画ツール",
-  description: "ブラウザで動画を分割・結合",
+  title: "推し活パスポート MVP",
+  description: "来場・購入・視聴を記録し、応援履歴と運営分析を可視化",
 };
 
 export default function RootLayout({
@@ -17,4 +17,3 @@ export default function RootLayout({
     </html>
   );
 }
-
