@@ -90,11 +90,31 @@ type DataStore = {
 };
 
 const STORAGE_KEY = "oshi-passport-mvp-v1";
+const DAY_MS = 24 * 60 * 60 * 1000;
+const NO_ACTION_DAYS = 30;
+const SECOND_CONTACT_DAYS = 14;
+const MAX_ID_RETRY = 10;
 
-const createId = () =>
-  typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2);
+const createId = () => {
+  if (
+    typeof globalThis.crypto === "undefined" ||
+    !("randomUUID" in globalThis.crypto)
+  ) {
+    throw new Error("安全なID生成に必要なcrypto.randomUUIDが利用できません。");
+  }
+  return globalThis.crypto.randomUUID();
+};
+
+const createUniqueCode = (existing: string[], prefix: string) => {
+  const used = new Set(existing);
+  for (let i = 0; i < MAX_ID_RETRY; i += 1) {
+    const code = `${prefix}-${createId().slice(0, 8).toUpperCase()}`;
+    if (!used.has(code)) return code;
+  }
+  throw new Error("一意なコード生成に失敗しました。");
+};
+
+const toUtcDay = (value: string) => new Date(value).toISOString().slice(0, 10);
 
 const formatDateTime = (value: string | null) => {
   if (!value) return "-";
@@ -133,7 +153,7 @@ const calcChurnRisk = (actions: ActionRecord[]) => {
   );
   const now = Date.now();
   const last = new Date(sorted[sorted.length - 1].action_at).getTime();
-  const noRecent30Days = now - last > 30 * 24 * 60 * 60 * 1000;
+  const noRecent30Days = now - last > NO_ACTION_DAYS * DAY_MS;
 
   let intervalFlag = false;
   if (sorted.length >= 3) {
@@ -150,7 +170,7 @@ const calcChurnRisk = (actions: ActionRecord[]) => {
 
   const noSecondContact =
     sorted.length === 1 &&
-    now - new Date(sorted[0].action_at).getTime() > 14 * 24 * 60 * 60 * 1000;
+    now - new Date(sorted[0].action_at).getTime() > SECOND_CONTACT_DAYS * DAY_MS;
 
   return noRecent30Days || intervalFlag || noSecondContact;
 };
@@ -226,12 +246,19 @@ export default function Home() {
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as DataStore;
-      setStore(parsed);
-      if (parsed.users.length > 0) {
-        setActiveUserId(parsed.users[0].user_id);
+      try {
+        const parsed = JSON.parse(raw) as DataStore;
+        setStore(parsed);
+        if (parsed.users.length > 0) {
+          setActiveUserId(parsed.users[0].user_id);
+        }
+        return;
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+        setMessage(
+          "保存データの読み込みに失敗したため初期化しました。必要に応じて再登録してください。",
+        );
       }
-      return;
     }
 
     const defaultTarget: Target = {
@@ -486,7 +513,10 @@ export default function Home() {
       display_name: displayName.trim(),
       login_type: loginType,
       login_key: loginKey.trim(),
-      passport_id: `PASS-${createId().slice(0, 8).toUpperCase()}`,
+      passport_id: createUniqueCode(
+        store.users.map((item) => item.passport_id),
+        "PASS",
+      ),
       target_id: selectedTargetId,
       registered_at: new Date().toISOString(),
       status: "active",
@@ -590,9 +620,7 @@ export default function Home() {
       ) {
         return false;
       }
-      const d1 = new Date(record.action_at);
-      const d2 = new Date();
-      return d1.toDateString() === d2.toDateString();
+      return toUtcDay(record.action_at) === toUtcDay(new Date().toISOString());
     });
     if (sameDayDuplicate) {
       setMessage("同一コンテンツの視聴記録は1日1回までです。");
@@ -627,7 +655,10 @@ export default function Home() {
       event_name: eventName.trim(),
       event_date: eventDate,
       event_type: eventType,
-      qr_token: `EVT-${createId().slice(0, 8).toUpperCase()}`,
+      qr_token: createUniqueCode(
+        store.events.map((item) => item.qr_token),
+        "EVT",
+      ),
       created_at: new Date().toISOString(),
     };
     saveStore({ ...store, events: [event, ...store.events] }, "イベントを作成しました。");
@@ -645,7 +676,10 @@ export default function Home() {
       target_id: selectedTargetId,
       product_name: productName.trim(),
       product_category: productCategory,
-      code: `BUY-${createId().slice(0, 8).toUpperCase()}`,
+      code: createUniqueCode(
+        store.products.map((item) => item.code),
+        "BUY",
+      ),
       created_at: new Date().toISOString(),
     };
     saveStore({ ...store, products: [product, ...store.products] }, "商品コードを発行しました。");
@@ -682,8 +716,14 @@ export default function Home() {
     ? Math.floor((Date.now() - new Date(activeSummary.first_action_at).getTime()) / (1000 * 60 * 60 * 24))
     : 0;
 
-  const shareText = `推し活パスポート\n応援タイプ: ${activeSummary?.fan_type ?? "-"}\n初応援から: ${daysFromFirstAction}日\n累計応援数: ${activeSummary?.total_actions ?? 0}`;
-  const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+  const shareText = [
+    "推し活パスポート",
+    `応援タイプ: ${activeSummary?.fan_type ?? "-"}`,
+    `初応援から: ${daysFromFirstAction}日`,
+    `累計応援数: ${activeSummary?.total_actions ?? 0}`,
+  ].join("\n");
+  const shareUrl = `https://x.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+  const lineShareUrl = `https://social-plugins.line.me/lineit/share?text=${encodeURIComponent(shareText)}`;
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100 md:px-8">
@@ -919,14 +959,24 @@ export default function Home() {
                   <p>今月の応援数: {monthlyActionCount}</p>
                   <p>推し対象名: {activeTarget?.target_name ?? "-"}</p>
                 </div>
-                <a
-                  href={shareUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 inline-flex rounded-lg bg-pink-500 px-4 py-2 text-sm font-semibold hover:bg-pink-400"
-                >
-                  SNS共有
-                </a>
+                <div className="mt-3 flex gap-2">
+                  <a
+                    href={shareUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex rounded-lg bg-pink-500 px-4 py-2 text-sm font-semibold hover:bg-pink-400"
+                  >
+                    Xで共有
+                  </a>
+                  <a
+                    href={lineShareUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold hover:bg-green-500"
+                  >
+                    LINEで共有
+                  </a>
+                </div>
               </>
             )}
           </div>

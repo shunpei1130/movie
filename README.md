@@ -43,7 +43,7 @@ Next.js 14 で作成した、推し活パスポートのMVPデモです。
 
 ## データ保持
 
-- 本MVPは `localStorage` に保存します（キー: `oshi-passport-mvp-v1`）。
+- 本MVPは `localStorage` に保存します (キー: `oshi-passport-mvp-v1`)。
 - サーバーサイドDB連携はMVPの次段階で拡張可能です。
 
 ## 開発
